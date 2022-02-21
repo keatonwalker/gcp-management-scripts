@@ -59,7 +59,6 @@ def project_has_compute_api_enabled(project_number, service_usage_api=None):
     
     return compute_service['state'] == 'ENABLED'
 
-
 class Firewall():
     """Class to store GCP firewall properties."""
 
@@ -68,6 +67,33 @@ class Firewall():
         self.project_id = project_rm_v3['network'].split('projects/')[1].split('/')[0]
         self.vpc = project_rm_v3['network'].split('networks/')[1].split('/')[0]
         self.logging_enabled = project_rm_v3['logConfig']['enable']
+    
+    def get_terraform_import_command(self):
+        tf_resource_name = self.name.replace('-', '_')
+        return f'terraform import google_compute_firewall.{tf_resource_name} {self.project_id}/{self.name}'
+    
+    def get_terraform_resource_template(self):
+        tf_resource_name = self.name.replace('-', '_')
+        tf_template = """
+            resource "google_compute_firewall" "{}" {{
+                name        = "{}"
+                project     = module.shared_vpc_project.project_id
+                network     = module.shared_vpc.vpc_selflink
+                description = ""
+                log_config {{
+                    metadata = "INCLUDE_ALL_METADATA"
+                }}  
+                priority    = "1000"
+                allow {{
+                    protocol = "tcp"
+                    ports    = ["0"]
+                }}
+                # target_tags   = []
+                # source_ranges = []
+            }}
+        """.format(tf_resource_name, self.name)
+        return tf_template
+
     
     def __repr__(self):
         return repr(f'{self.project_id}/{self.vpc}/{self.name}')
